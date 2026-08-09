@@ -11,45 +11,68 @@
   h2 { font-size:21px; font-weight:700; margin-top:40px; margin-bottom:12px; }
   video, img.plate { width:100%; border-radius:12px; margin-top:10px; }
   table { width:100%; border-collapse:collapse; margin-top:12px; font-size:15px; }
-  th, td { text-align:left; padding:9px 10px; border-bottom:1px solid #2c2c2a; }
+  th, td { text-align:left; padding:9px 10px; border-bottom:1px solid #2c2c2a; font-variant-numeric:tabular-nums; }
   th { color:#898781; font-weight:600; font-size:13px; letter-spacing:0.06em; }
   td.win { font-weight:700; }
-  .blue { color:#3987e5; } .orange { color:#d95926; }
+  .sage { color:#279667; } .amber { color:#B58B2D; }
   .note { font-size:14px; color:#898781; margin-top:14px; line-height:1.6; }
-  a { color:#3987e5; }
+  a { color:#B58B2D; }
   .verdict { font-size:22px; font-weight:750; margin-top:36px; padding-top:22px; border-top:1px solid #2c2c2a; }
-  @media (prefers-color-scheme: light) { body { background:#0d0d0d; } }
 </style></head><body>
 <div class="kicker">SAME MODEL &middot; SAME FILE &middot; SAME ENGINE &middot; MEASURED 2026-08-08</div>
 <h1>DGX Spark vs RTX 3090</h1>
 <div class="sub">Qwen3.6-27B &middot; Q4_K_M GGUF (17.2 GiB, sha256-verified identical copy) &middot; llama.cpp build 10133 both sides
-(native sm_121 on the Spark, CUDA on the 3090) &middot; identical serving flags &middot; all numbers from server-side timings,
-nonce-prefixed prompts so prompt caching never flatters a rep.</div>
+(native sm_121 on the Spark, CUDA on the 3090) &middot; identical serving flags &middot; server-side timings, nonce-prefixed prompts.</div>
 
-<h2>The ladder, animated</h2>
-<video controls autoplay muted loop playsinline src="spark-vs-3090-ladder.mp4"></video>
+<h2>Three acts, one clip</h2>
+<video controls autoplay muted loop playsinline src="spark-vs-3090-triptych.mp4"></video>
 
-<h2>Full results</h2>
+<h2>Headline results</h2>
 <table>
-<tr><th>test</th><th>RTX 3090 &middot; <span class="blue">936 GB/s</span></th><th>DGX Spark &middot; <span class="orange">273 GB/s</span></th><th>ratio</th></tr>
+<tr><th>test</th><th><span class="sage">RTX 3090</span> &middot; 936 GB/s</th><th><span class="amber">DGX Spark</span> &middot; 273 GB/s</th><th>ratio</th></tr>
 <tr><td>decode, 1 stream</td><td class="win">39.1 tok/s</td><td>12.1 tok/s</td><td>3.2&times;</td></tr>
 <tr><td>decode, 1 stream + MTP spec</td><td class="win">52.0</td><td>17.1</td><td>3.0&times;</td></tr>
-<tr><td>prefill, ~10K prompt</td><td class="win">1,303 tok/s</td><td>814 tok/s</td><td>1.6&times;</td></tr>
-<tr><td>aggregate @ 8 streams</td><td class="win">95.2 tok/s</td><td>62.3 tok/s</td><td>1.5&times;</td></tr>
-<tr><td>aggregate @ 16 streams</td><td>~95 (saturated @ 8)</td><td class="win">96.5 tok/s</td><td>1.0&times;</td></tr>
+<tr><td>aggregate @ 8 / 16 streams</td><td class="win">95.2 / ~95 (saturated)</td><td>62.3 / <b>96.5</b></td><td>1.0&times; @16</td></tr>
 <tr><td>power under load</td><td>~323 W</td><td class="win">~50&ndash;66 W</td><td>&ge;5&times;</td></tr>
-<tr><td>tok/s per watt @ batch</td><td>0.29</td><td class="win">~1.5&ndash;1.9</td><td>~5&times;</td></tr>
-<tr><td>max context (this model, q8 KV)</td><td>131,072 &mdash; 98% VRAM; 163,840 OOM</td><td class="win">262,144 runs (12.1 tok/s)</td><td>2&times;</td></tr>
-<tr><td>Llama-3.3-70B Q4_K_M (40 GB)</td><td>does not fit</td><td class="win">4.9 tok/s, 48 of 121 GB</td><td>&infin;</td></tr>
-<tr><td>greedy output, temp 0</td><td colspan="2">sha256 identical on both machines &mdash; same brain, different physics</td><td>1:1</td></tr>
+<tr><td>max context (this model, q8 KV)</td><td>131,072 (163,840 OOM)</td><td class="win">262,144 runs</td><td>2&times;</td></tr>
+<tr><td>Llama-3.3-70B Q4_K_M (40 GB)</td><td>does not fit</td><td class="win">4.9 tok/s</td><td>&infin;</td></tr>
+<tr><td>greedy output, temp 0</td><td colspan="2">sha256 identical &mdash; same brain, different physics</td><td>1:1</td></tr>
 </table>
-<div class="note">Power figures are each device&rsquo;s own nvidia-smi counter &mdash; card-scope for the 3090 (host adds ~100 W+),
-module-scope for the GB10 (wall draw higher). Directionally &ge;3&times; per token in the Spark&rsquo;s favor, plausibly more.
-Speculative decode was OFF for all hardware rows; the MTP row uses the production config on both sides.</div>
+
+<h2>Decode &amp; prefill at context depth &mdash; to each machine&rsquo;s ceiling</h2>
+<table>
+<tr><th rowspan="2" style="vertical-align:bottom">context depth</th><th colspan="2"><span class="sage">RTX 3090</span></th><th colspan="2"><span class="amber">DGX Spark</span></th></tr>
+<tr><th>prefill</th><th>decode</th><th>prefill</th><th>decode</th></tr>
+<tr><td>~900</td><td>1,215</td><td>38.9</td><td>798</td><td>11.6</td></tr>
+<tr><td>~8.6K</td><td>1,321</td><td>37.1</td><td>819</td><td>11.3</td></tr>
+<tr><td>~26K</td><td>1,230</td><td>33.9</td><td>762</td><td>10.8</td></tr>
+<tr><td>~49K</td><td>1,119</td><td>30.4</td><td>725</td><td>10.3</td></tr>
+<tr><td>~89K</td><td>948</td><td>25.6</td><td>644</td><td>9.4</td></tr>
+<tr><td>~125K</td><td>838</td><td>22.3</td><td>592</td><td>8.7</td></tr>
+<tr><td>~179K</td><td colspan="2" style="color:#898781">beyond 131K ceiling</td><td>526</td><td>7.9</td></tr>
+<tr><td>~249K</td><td colspan="2" style="color:#898781">&mdash;</td><td class="win">456</td><td class="win">6.8</td></tr>
+</table>
+<div class="note">At the 3090&rsquo;s ceiling the decode gap has narrowed from 3.4&times; to 2.6&times; &mdash; the Spark&rsquo;s decline with depth is
+gentler. Past 131K only one line continues. Single rep on the two &ge;179K rungs (observed rep variance &plusmn;1%).</div>
+
+<h2>Per-stream decode under load</h2>
+<table>
+<tr><th>streams</th><th><span class="sage">3090</span> per-stream</th><th><span class="amber">Spark</span> per-stream</th><th>3090 aggregate</th><th>Spark aggregate</th></tr>
+<tr><td>1</td><td>39.0</td><td>11.7</td><td>37.7</td><td>11.6</td></tr>
+<tr><td>2</td><td>33.2</td><td>11.0</td><td>62.1</td><td>21.7</td></tr>
+<tr><td>4</td><td>21.8</td><td>10.0</td><td>79.9</td><td>38.8</td></tr>
+<tr><td>8</td><td>13.2</td><td>8.1</td><td>95.2</td><td>62.3</td></tr>
+<tr><td>16</td><td style="color:#898781">saturated @8</td><td>6.3</td><td>~95</td><td class="win">96.5</td></tr>
+</table>
+<div class="note">Under real multi-user load the felt gap shrinks: 13.2 vs 8.1 tok/s per user at eight streams &mdash;
+while the Spark draws one-fifth the power.</div>
 
 <h2>The plate</h2>
 <img class="plate" src="spark-vs-3090-plate.png" alt="Field plate: full comparison">
 
 <div class="verdict">Latency box vs throughput box. Buy the one you mean.</div>
-<div class="note">Files: <a href="spark-vs-3090-ladder.mp4">ladder animation (MP4)</a> &middot; <a href="spark-vs-3090-plate.png">field plate (PNG)</a></div>
+<div class="note">Files: <a href="spark-vs-3090-triptych.mp4">three-act clip (MP4)</a> &middot;
+<a href="spark-vs-3090-ladder.mp4">ladder-only clip (MP4)</a> &middot;
+<a href="spark-vs-3090-plate.png">field plate (PNG)</a> &middot;
+power figures are each device&rsquo;s own counter (card-scope vs module-scope); spec decode off for hardware rows.</div>
 </body></html>
